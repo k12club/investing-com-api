@@ -7,17 +7,14 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  ci:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [10.x, 12.x]
     steps:
-    - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
-    - run: npm i
+        node-version: '20'
+        cache: 'npm'
+    - run: npm ci
     - run: npm run lint
     - run: npm test

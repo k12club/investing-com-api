@@ -1,26 +1,156 @@
-const assert = require('assert')
-const { investing } = require('../index')
-const { mapResponse } = require('../functions')
+/* eslint-disable max-len */
+const puppeteer = require('puppeteer');
+const assert = require('assert');
+const { investing } = require('../index');
+const { getJsonContent, mapResponse } = require('../functions');
 
 const mockData = [
-  [1587340800000, 230.7, 0, 0],
-  [1587427200000, 259.4, 0, 0],
-  [1587513600000, 246.2, 0, 0],
-  [1587945600000, 218, 0, 0]
-]
+  [1587340800000, 230.7, 1, 2, 3, 4],
+  [1587427200000, 259.4, 5, 6, 7, 8],
+  [1587513600000, 246.2, 9, 10, 11, 12],
+  [1587945600000, 218, 13, 14, 15, 16],
+];
+let browser;
+let page;
+
+/**
+ * Initialize Puppeteer for tests
+ */
+async function initPuppeteer() {
+  browser = await puppeteer.launch();
+  page = await browser.newPage();
+  await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36');
+}
 
 describe('Tests for Investing.com unofficial APIs', () => {
-  it('should map an array of arrays to array of objects', () => {
-    const mappedResponse = mapResponse(mockData)
-    assert.strictEqual(mockData[0][0], mappedResponse[0].date)
-    assert.strictEqual(mockData[0][1], mappedResponse[0].value)
-    assert.strictEqual(mockData[1][0], mappedResponse[1].date)
-    assert.strictEqual(mockData[1][1], mappedResponse[1].value)
-  })
+  beforeAll(async () => {
+    await initPuppeteer();
+  });
 
-  it('should return data from investing.com', async () => {
-    const response = await investing('currencies/eur-usd')
-    assert.ok(response)
-    assert.ok(response.length)
-  })
-})
+  afterAll(() => {
+    browser.close();
+  });
+
+  it('should map an array of arrays to array of objects', () => {
+    const mappedResponse = mapResponse(mockData);
+    const expected = [
+      {
+        date: mockData[0][0],
+        price_open: mockData[0][1],
+        price_high: mockData[0][2],
+        price_low: mockData[0][3],
+        price_close: mockData[0][4],
+        value: mockData[0][4],
+        volume: mockData[0][5],
+      },
+      {
+        date: mockData[1][0],
+        price_open: mockData[1][1],
+        price_high: mockData[1][2],
+        price_low: mockData[1][3],
+        price_close: mockData[1][4],
+        value: mockData[1][4],
+        volume: mockData[1][5],
+      },
+      {
+        date: mockData[2][0],
+        price_open: mockData[2][1],
+        price_high: mockData[2][2],
+        price_low: mockData[2][3],
+        price_close: mockData[2][4],
+        value: mockData[2][4],
+        volume: mockData[2][5],
+      },
+      {
+        date: mockData[3][0],
+        price_open: mockData[3][1],
+        price_high: mockData[3][2],
+        price_low: mockData[3][3],
+        price_close: mockData[3][4],
+        value: mockData[3][4],
+        volume: mockData[3][5],
+      },
+    ];
+    expect(mappedResponse).toEqual(expected);
+  });
+
+  xit('should get json content from page', async () => {
+    await page.goto(`https://api.investing.com/api/financialdata/1/historical/chart?period=P1M&interval=P1D&pointscount=120`);
+    const { data } = await getJsonContent(page);
+    assert.ok(data);
+  });
+
+  it('should return undefined and print error if no input is given', async () => {
+    const response = await investing();
+    assert.strictEqual(response, undefined);
+  });
+
+  it('should return undefined and print error if input is invalid', async () => {
+    const response = await investing('currencies/invalid');
+    assert.strictEqual(response, undefined);
+  });
+
+  it('should return error with invalid period', async () => {
+    const response = await investing('currencies/eur-usd', '1M');
+    assert.strictEqual(response, undefined);
+  });
+
+  it('should return error with invalid interval', async () => {
+    const response = await investing('currencies/eur-usd', 'P1M', '15M');
+    assert.strictEqual(response, undefined);
+  });
+
+  it('should return error with invalid pointscount', async () => {
+    const response = await investing('currencies/eur-usd', 'P1M', 'P1D', 20);
+    assert.strictEqual(response, undefined);
+  });
+
+  xit('should get data from investing.com APIs', async () => {
+    await page.goto(`https://api.investing.com/api/financialdata/1/historical/chart?period=P1M&interval=P1D&pointscount=120`);
+    const { data } = await getJsonContent(page);
+    assert.ok(Array.isArray(data));
+    assert.ok(data.length);
+    assert.ok(Array.isArray(data[0]));
+    assert.strictEqual(data[0].length, 7);
+  });
+
+  xit('should return data from investing.com with default params', async () => {
+    await page.goto(`https://api.investing.com/api/financialdata/1/historical/chart?period=P1M&interval=P1D&pointscount=120`);
+    const { data } = await getJsonContent(page);
+    assert.ok(Array.isArray(data));
+    assert.ok(data.length);
+    assert.ok(Array.isArray(data[0]));
+    assert.strictEqual(data[0].length, 7);
+    assert.ok(data.length >= 20 && data.length <= 24);
+  });
+
+  it('should return data from investing.com with custom period', async () => {
+    await page.goto(`https://api.investing.com/api/financialdata/1/historical/chart?period=P1D&interval=P1D&pointscount=120`);
+    const { data } = await getJsonContent(page);
+    assert.ok(Array.isArray(data));
+    assert.ok(data.length);
+    assert.ok(Array.isArray(data[0]));
+    assert.strictEqual(data[0].length, 7);
+    assert.strictEqual(data.length, 1);
+  });
+
+  it('should return data from investing.com with custom interval', async () => {
+    await page.goto(`https://api.investing.com/api/financialdata/1/historical/chart?period=P1M&interval=P1W&pointscount=120`);
+    const { data } = await getJsonContent(page);
+    assert.ok(Array.isArray(data));
+    assert.ok(data.length);
+    assert.ok(Array.isArray(data[0]));
+    assert.strictEqual(data[0].length, 7);
+    assert.ok(data.length >= 4 && data.length <= 7);
+  });
+
+  it('should return data from investing.com with custom pointscount', async () => {
+    await page.goto(`https://api.investing.com/api/financialdata/1/historical/chart?period=P1M&interval=P1D&pointscount=60`);
+    const { data } = await getJsonContent(page);
+    assert.ok(Array.isArray(data));
+    assert.ok(data.length);
+    assert.ok(Array.isArray(data[0]));
+    assert.strictEqual(data[0].length, 7);
+    assert.ok(data.length >= 20 && data.length <= 24);
+  });
+});
